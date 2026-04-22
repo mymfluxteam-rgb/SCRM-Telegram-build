@@ -81,7 +81,19 @@ export default class AppLanguageFormatSettingsTab extends SliderSuperTab {
         listenerSetter: this.listenerSetter
       });
 
-      section.content.append(enableRow.container);
+      const autoVoiceRow = new Row({
+        icon: 'microphone',
+        title: 'Auto-translate Voice Messages',
+        checkboxField: new CheckboxField({
+          name: 'auto-translate-voice',
+          stateKey: joinDeepPath('settings', 'languageFormat', 'autoTranslateVoice'),
+          listenerSetter: this.listenerSetter,
+          toggle: true
+        }),
+        listenerSetter: this.listenerSetter
+      });
+
+      section.content.append(enableRow.container, autoVoiceRow.container);
       this.scrollable.append(section.container);
     }
 

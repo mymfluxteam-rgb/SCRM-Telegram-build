@@ -132,6 +132,7 @@ export type StateSettings = {
   },
   languageFormat: {
     enabled: boolean,
+    autoTranslateVoice: boolean,
     myLanguage: string,
     clientLanguage: string,
     layoutStyle: 'custom'
@@ -422,6 +423,7 @@ export const SETTINGS_INIT: StateSettings = {
   },
   languageFormat: {
     enabled: false,
+    autoTranslateVoice: false,
     myLanguage: 'my',
     clientLanguage: 'es-MX',
     layoutStyle: 'custom'
