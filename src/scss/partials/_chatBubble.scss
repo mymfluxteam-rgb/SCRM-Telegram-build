@@ -4019,16 +4019,18 @@
 
 // 2-Way Translation dual-text bubble layout
 .bubble-translation-divider {
-  display: block;
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.2);
+  margin: 4px 0;
   width: 100%;
-  height: 0.5px;
-  border: none;
-  background-color: rgba(0, 0, 0, 0.1);
-  margin: .375rem 0;
+}
+
+.bubble.is-in .bubble-translation-divider {
+  border-top-color: rgba(0, 0, 0, 0.2);
 }
 
 .bubble.is-out .bubble-translation-divider {
-  background-color: rgba(255, 255, 255, 0.35);
+  border-top-color: rgba(255, 255, 255, 0.2);
 }
 
 .bubble-translation-top,
