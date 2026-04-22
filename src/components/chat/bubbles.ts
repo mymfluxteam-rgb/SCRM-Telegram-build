@@ -8709,8 +8709,33 @@ export default class ChatBubbles {
       } else {
         messageDiv.append(divider, translatedSpan);
       }
+
+      // Suppress Telegram's native transcribe button so users can't trigger
+      // the Premium-required messages.transcribeAudio request. We rely
+      // exclusively on Gemini for voice-to-text + translation.
+      const nativeBtns = bubble.querySelectorAll<HTMLElement>('.audio-to-text-button');
+      nativeBtns.forEach((btn) => {
+        btn.style.display = 'none';
+        btn.onclick = null;
+      });
+      const audioWrap = bubble.querySelector('.audio.can-transcribe');
+      if(audioWrap) audioWrap.classList.remove('can-transcribe');
     };
     insert();
+
+    // Audio elements may be wrapped/rendered after this method runs, so
+    // observe and re-suppress any transcribe button that appears later.
+    const obs = new MutationObserver(() => {
+      const btns = bubble.querySelectorAll<HTMLElement>('.audio-to-text-button');
+      btns.forEach((btn) => {
+        if(btn.style.display !== 'none') {
+          btn.style.display = 'none';
+          btn.onclick = null;
+        }
+      });
+    });
+    obs.observe(bubble, {childList: true, subtree: true});
+    middleware.onClean(() => obs.disconnect());
 
     try {
       const url = await appDownloadManager.downloadMediaURL({media: doc});
