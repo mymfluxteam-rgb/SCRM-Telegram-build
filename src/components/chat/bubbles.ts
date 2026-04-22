@@ -1032,7 +1032,7 @@ export default class ChatBubbles {
       this.setBubbleRepliesCount(bubble, message.replies.replies);
     });
 
-    this.listenerSetter.add(rootScope)('message_transcribed', ({peerId, mid, text, pending}) => {
+    this.listenerSetter.add(rootScope)('message_transcribed', async({peerId, mid, text, pending}) => {
       if(peerId !== this.peerId) return;
 
       const bubble = this.getBubble(makeFullMid(peerId, mid));
@@ -1079,6 +1079,35 @@ export default class ChatBubbles {
         } else if(text) {
           // transcribedText.classList.add('has-some-text');
           transcribedText.firstChild.textContent = text;
+
+          const langFormat = this.chat.appSettings.languageFormat;
+          if(!pending && langFormat?.enabled) {
+            const messageObj = await this.managers.appMessagesManager.getMessageByPeer(peerId, mid) as Message.message;
+            const isOutMsg = messageObj && this.chat.isOutMessage(messageObj);
+            const targetLang = (isOutMsg ? langFormat.clientLanguage : langFormat.myLanguage)?.split('-')[0];
+            if(targetLang) {
+              this.managers.appTranslationsManager.translateText({
+                text: {_: 'textWithEntities', text, entities: []},
+                lang: targetLang
+              }).then((translated: TextWithEntities) => {
+                if(!translated || !translated.text || translated.text === text) return;
+                if(!transcribedText.isConnected) return;
+
+                let divider = transcribedText.nextElementSibling as HTMLElement;
+                let translatedDiv: HTMLElement;
+                if(divider?.classList.contains('bubble-translation-divider')) {
+                  translatedDiv = divider.nextElementSibling as HTMLElement;
+                } else {
+                  divider = document.createElement('hr');
+                  divider.classList.add('bubble-translation-divider');
+                  translatedDiv = document.createElement('div');
+                  translatedDiv.classList.add('audio-transcribed-text', 'audio-transcribed-translated');
+                  transcribedText.after(divider, translatedDiv);
+                }
+                translatedDiv.textContent = translated.text;
+              }).catch(() => {});
+            }
+          }
         }
 
         speechRecognitionIcon.classList.remove(_tgico('transcribe'));
@@ -7571,6 +7600,9 @@ export default class ChatBubbles {
               }
             }
           } else {
+            if(doc.type === 'voice' && !our && this.chat.appSettings.languageFormat?.enabled) {
+              this.managers.appMessagesManager.transcribeAudio(message as Message.message).catch(() => {});
+            }
             const newNameContainer = await wrapGroupedDocuments({
               albumMustBeRenderedFull: groupedMustBeRenderedFull,
               middleware,
