@@ -107,6 +107,7 @@ export default class ChatTopbar {
   private btnGroupCallMenu: HTMLElement;
   private btnMute: HTMLButtonElement;
   private btnSearch: HTMLButtonElement;
+  private btnLanguageFormat: HTMLButtonElement;
   private btnLogFilters: HTMLButtonElement;
   private btnMore: HTMLElement;
   private btnDirectMessages: HTMLElement;
@@ -238,6 +239,7 @@ export default class ChatTopbar {
       this.btnGroupCall,
       this.btnGroupCallMenu,
       this.btnMute,
+      this.btnLanguageFormat,
       this.btnSearch,
       this.btnLogFilters,
       this.btnMore
@@ -836,6 +838,15 @@ export default class ChatTopbar {
     this.attachClickEvent(this.btnSearch, (e) => {
       this.chat.initSearch();
     }, true);
+
+    this.btnLanguageFormat = ButtonIcon('language');
+    this.btnLanguageFormat.title = 'Language Format';
+    this.attachClickEvent(this.btnLanguageFormat, async() => {
+      const {default: AppLanguageFormatSettingsTab} = await import('@components/sidebarLeft/tabs/languageFormatSettings');
+      const tab = this.appSidebarRight.createTab(AppLanguageFormatSettingsTab);
+      tab.open();
+      this.appSidebarRight.toggleSidebar(true);
+    });
 
     this.btnLogFilters = ButtonIcon('filter');
     this.attachClickEvent(this.btnLogFilters, () => {

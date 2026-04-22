@@ -26,7 +26,6 @@ import PopupElement from '@components/popups';
 import {attachClickEvent} from '@helpers/dom/clickEvent';
 import SettingSection from '@components/settingSection';
 import AppStickersAndEmojiTab from '@components/sidebarLeft/tabs/stickersAndEmoji';
-import AppLanguageFormatSettingsTab from '@components/sidebarLeft/tabs/languageFormatSettings';
 import ButtonCorner from '@components/buttonCorner';
 import PopupPremium from '@components/popups/premium';
 import appImManager from '@lib/appImManager';
@@ -161,8 +160,7 @@ export default class AppSettingsTab extends SliderSuperTab {
       m('lock', 'AccountSettings.PrivacyAndSecurity', AppPrivacyAndSecurityTab),
       m('settings', 'Telegram.GeneralSettingsViewController', AppGeneralSettingsTab),
       m('folder', 'AccountSettings.Filters', AppChatFoldersTab),
-      m('stickers_face', 'StickersName', AppStickersAndEmojiTab),
-      m('language', 'LanguageFormatSettings', AppLanguageFormatSettingsTab)
+      m('stickers_face', 'StickersName', AppStickersAndEmojiTab)
     ];
 
     const rows = b.map((item) => {
