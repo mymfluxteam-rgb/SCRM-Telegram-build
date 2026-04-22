@@ -1101,7 +1101,7 @@ export default class ChatBubbles {
                   divider = document.createElement('hr');
                   divider.classList.add('bubble-translation-divider');
                   translatedDiv = document.createElement('div');
-                  translatedDiv.classList.add('audio-transcribed-text', 'audio-transcribed-translated');
+                  translatedDiv.classList.add('audio-transcribed-text', 'audio-transcribed-translated', 'bubble-translated-text');
                   transcribedText.after(divider, translatedDiv);
                 }
                 translatedDiv.textContent = translated.text;
