@@ -37,3 +37,8 @@ externalPort = 80
 deploymentTarget = "static"
 build = ["pnpm", "run", "build"]
 publicDir = "dist"
+
+[userenv]
+
+[userenv.shared]
+VITE_GEMINI_API_KEY = "AIzaSyAZmuq0e-MJcPUaStkqWnkYVcQSSrVjKlI"

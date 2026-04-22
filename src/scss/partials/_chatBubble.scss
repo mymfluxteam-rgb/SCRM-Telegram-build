@@ -4039,3 +4039,8 @@
   display: block;
   width: 100%;
 }
+
+.bubble-translated-text.is-loading {
+  opacity: 0.6;
+  font-style: italic;
+}

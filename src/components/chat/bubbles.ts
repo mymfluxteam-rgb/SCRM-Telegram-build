@@ -41,6 +41,7 @@ import findUpClassName from '@helpers/dom/findUpClassName';
 import findUpTag from '@helpers/dom/findUpTag';
 import {hideToast, toastNew} from '@components/toast';
 import {getMiddleware, Middleware} from '@helpers/middleware';
+import appDownloadManager from '@lib/appDownloadManager';
 import cancelEvent from '@helpers/dom/cancelEvent';
 import {attachClickEvent, simulateClickEvent} from '@helpers/dom/clickEvent';
 import htmlToDocumentFragment from '@helpers/dom/htmlToDocumentFragment';
@@ -7600,8 +7601,19 @@ export default class ChatBubbles {
               }
             }
           } else {
-            if(doc.type === 'voice' && !our && this.chat.appSettings.languageFormat?.enabled) {
-              this.managers.appMessagesManager.transcribeAudio(message as Message.message).catch(() => {});
+            if(doc.type === 'voice' && this.chat.appSettings.languageFormat?.enabled) {
+              const langFormat = this.chat.appSettings.languageFormat;
+              const targetLangFull = our ? langFormat.clientLanguage : langFormat.myLanguage;
+              const targetLang = targetLangFull?.split('-')[0];
+              if(targetLang) {
+                this.runGeminiVoiceTranslation({
+                  bubble,
+                  messageDiv,
+                  doc: doc as MyDocument,
+                  targetLang,
+                  middleware
+                });
+              }
             }
             const newNameContainer = await wrapGroupedDocuments({
               albumMustBeRenderedFull: groupedMustBeRenderedFull,
@@ -8664,6 +8676,62 @@ export default class ChatBubbles {
     });
 
     return ret;
+  }
+
+  private geminiVoiceInFlight = new Set<string>();
+
+  private async runGeminiVoiceTranslation(options: {
+    bubble: HTMLElement,
+    messageDiv: HTMLDivElement,
+    doc: MyDocument,
+    targetLang: string,
+    middleware: Middleware
+  }) {
+    const {bubble, messageDiv, doc, targetLang, middleware} = options;
+    const key = `${doc.id}_${targetLang}`;
+    if(this.geminiVoiceInFlight.has(key)) return;
+    if(messageDiv.querySelector('.bubble-translated-text')) return;
+    this.geminiVoiceInFlight.add(key);
+
+    const divider = document.createElement('hr');
+    divider.classList.add('bubble-translation-divider');
+    const translatedSpan = document.createElement('span');
+    translatedSpan.classList.add('bubble-translated-text', 'audio-transcribed-text');
+    translatedSpan.classList.add('is-loading');
+    translatedSpan.textContent = 'AI is listening…';
+
+    const insert = () => {
+      if(!middleware()) return;
+      const timeEl = messageDiv.querySelector('.time, .clearfix');
+      if(timeEl) {
+        messageDiv.insertBefore(divider, timeEl);
+        messageDiv.insertBefore(translatedSpan, timeEl);
+      } else {
+        messageDiv.append(divider, translatedSpan);
+      }
+    };
+    insert();
+
+    try {
+      const url = await appDownloadManager.downloadMediaURL({media: doc});
+      if(!middleware()) return;
+      const blob = await (await fetch(url)).blob();
+      if(!middleware()) return;
+
+      const {translateAudioWithGemini} = await import('@lib/gemini');
+      if(!middleware()) return;
+      const translated = await translateAudioWithGemini(blob, targetLang);
+      if(!middleware()) return;
+
+      translatedSpan.classList.remove('is-loading');
+      translatedSpan.textContent = translated;
+    } catch(err) {
+      if(!middleware()) return;
+      divider.remove();
+      translatedSpan.remove();
+    } finally {
+      this.geminiVoiceInFlight.delete(key);
+    }
   }
 
   private async addMessageSpoilerOverlay({mid, messageDiv, middleware, loadPromises, canTranslate}: AddMessageSpoilerOverlayArgs) {
