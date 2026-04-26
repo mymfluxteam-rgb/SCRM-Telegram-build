@@ -137,6 +137,7 @@ export type StateSettings = {
     clientLanguage: string,
     layoutStyle: 'custom'
   },
+  fastMessages: string[],
 };
 
 // (1 - use swatch, 2 - use picker color), (color from swatch), (color from picker)
@@ -427,7 +428,29 @@ export const SETTINGS_INIT: StateSettings = {
     myLanguage: 'my',
     clientLanguage: 'es-MX',
     layoutStyle: 'custom'
-  }
+  },
+  fastMessages: [
+    'Hello! 👋 How are you today?',
+    'Thanks for your message, I will get back to you soon.',
+    'Sorry, I am busy right now. Can we talk later?',
+    'Got it, thanks!',
+    'On my way 🚗',
+    'Please send me the details.',
+    'Sounds good to me 👍',
+    'Let me check and confirm.',
+    'Have a great day! 🌟',
+    'Good morning! ☀️',
+    'Good night 🌙',
+    'Happy birthday! 🎉🎂',
+    'Congratulations! 🎊',
+    'I am in a meeting. Will reply later.',
+    'Please share your phone number.',
+    'Where are you?',
+    'Yes, that works for me.',
+    'No problem at all 🙂',
+    'I appreciate your help, thank you!',
+    'Talk to you soon 👋'
+  ]
 };
 
 export const STATE_INIT: State = {
