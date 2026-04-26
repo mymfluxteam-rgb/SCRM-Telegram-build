@@ -1,0 +1,158 @@
+/*
+ * Fast Messages Sidebar — vertical menu on the right with predefined messages
+ * and language format settings.
+ */
+
+@use "../shared" as *;
+
+/* Reserve space on the right for the fast messages sidebar so it does not
+ * overlap the chat content or the existing right info column. */
+$fast-sidebar-width: 16rem;
+
+.page-chats #main-columns {
+  @include respond-to(not-handhelds) {
+    padding-inline-end: $fast-sidebar-width;
+  }
+}
+
+@include respond-to(not-handhelds) {
+  #column-right {
+    inset-inline-end: $fast-sidebar-width !important;
+  }
+}
+
+#column-fast {
+  display: flex;
+  flex-direction: column;
+  width: $fast-sidebar-width;
+  height: 100%;
+  background-color: var(--surface-color);
+  border-inline-start: 1px solid var(--border-color);
+  position: absolute;
+  inset-inline-end: 0;
+  top: 0;
+  z-index: 4;
+  overflow: hidden;
+
+  @include respond-to(handhelds) {
+    display: none !important;
+  }
+}
+
+.fast-sidebar {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  width: 100%;
+  color: var(--primary-text-color);
+
+  &__header {
+    flex: 0 0 auto;
+    padding: .875rem 1rem;
+    border-bottom: 1px solid var(--border-color);
+
+    .fast-sidebar__title {
+      font-size: 1rem;
+      font-weight: var(--font-weight-bold);
+      color: var(--primary-text-color);
+      margin: 0 0 .125rem;
+      line-height: 1.25;
+    }
+
+    .fast-sidebar__subtitle {
+      font-size: .8125rem;
+      color: var(--secondary-text-color);
+      line-height: 1.2;
+    }
+  }
+
+  &__list {
+    flex: 1 1 auto;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: .5rem .75rem;
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+
+    /* Match the existing scrollbar styling used in the right sidebar */
+    scrollbar-width: thin;
+    scrollbar-color: var(--scrollbar-color, rgba(0, 0, 0, .25)) transparent;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background-color: var(--scrollbar-color, rgba(0, 0, 0, .25));
+      border-radius: 3px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+  }
+
+  &__slot {
+    display: block;
+    width: 100%;
+    text-align: start;
+    background-color: var(--message-background-color, var(--light-secondary-text-color));
+    color: var(--primary-text-color);
+    border: 1px solid var(--border-color);
+    border-radius: $border-radius-medium;
+    padding: .625rem .75rem;
+    font-size: .875rem;
+    line-height: 1.35;
+    cursor: pointer;
+    user-select: none;
+    transition: background-color .15s ease, border-color .15s ease, transform .05s ease;
+    font-family: inherit;
+    white-space: pre-wrap;
+    word-break: break-word;
+
+    &:hover {
+      background-color: var(--light-primary-color, rgba(0, 0, 0, .05));
+      border-color: var(--primary-color);
+    }
+
+    &:active {
+      transform: scale(.98);
+    }
+  }
+
+  &__footer {
+    flex: 0 0 auto;
+    padding: .75rem 1rem;
+    border-top: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
+  }
+
+  &__btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    width: 100%;
+    background-color: var(--primary-color);
+    color: #fff;
+    border: none;
+    border-radius: $border-radius-medium;
+    padding: .625rem .75rem;
+    font-size: .875rem;
+    font-weight: var(--font-weight-bold);
+    cursor: pointer;
+    transition: filter .15s ease;
+    font-family: inherit;
+
+    &:hover {
+      filter: brightness(1.05);
+    }
+
+    &:active {
+      filter: brightness(.95);
+    }
+  }
+}

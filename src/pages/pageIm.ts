@@ -21,11 +21,13 @@ const onFirstMount = () => {
   return Promise.all([
     import('../lib/appDialogsManager'),
     import('../vendor/recorder.min.js'),
+    import('../components/fastMessagesSidebar'),
     loadFonts()/* .then(() => new Promise((resolve) => window.requestAnimationFrame(resolve))) */,
     'requestVideoFrameCallback' in HTMLVideoElement.prototype ? Promise.resolve() : import('../helpers/dom/requestVideoFrameCallbackPolyfill')
-  ]).then(([appDialogsManager, recorder]) => {
+  ]).then(([appDialogsManager, recorder, fastSidebar]) => {
     (window as any).Recorder = recorder.default;
     appDialogsManager.default.start();
+    fastSidebar.default();
     document.body.classList.remove('has-auth-pages');
     setTimeout(() => {
       document.getElementById('auth-pages').remove();
