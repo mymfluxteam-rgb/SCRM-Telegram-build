@@ -1,20 +1,22 @@
 /*
- * Fast Messages Sidebar
+ * Fast Messages Sidebar (tabbed)
  *
- * A vertical menu pinned to the right side of the chat interface that holds a
- * scrollable list of clickable predefined messages. Clicking a slot inserts the
- * message into the currently focused chat input. The list can be edited by the
- * user (add / remove / reorder / edit text) and is persisted via the same app
- * settings store the rest of the client uses, so it survives page refreshes.
- *
- * A footer button opens the existing Language Format Settings tab.
+ * A vertical menu pinned to the right side of the chat interface that holds
+ * two tabs:
+ *   1) Fast Messages — a scrollable list of clickable predefined messages
+ *      with edit/reorder/delete and per-device add/remove. The list is also
+ *      synced to the user's Saved Messages chat (hidden pinned message) so
+ *      it follows them across devices.
+ *   2) Language Format — the same options exposed by the Language Format
+ *      Settings tab, rendered inline so the user no longer needs the topbar
+ *      icon to reach them.
  */
 
 import {createEffect, createRoot, on} from 'solid-js';
 import {unwrap} from 'solid-js/store';
 import appImManager from '@lib/appImManager';
-import appSidebarRight from '@components/sidebarRight';
 import {useAppSettings} from '@stores/appSettings';
+import initFastMessagesCloudSync from '@lib/fastMessagesCloudSync';
 
 const DEFAULT_FAST_MESSAGES: string[] = [
   'Hello! 👋 How are you today?',
@@ -39,6 +41,56 @@ const DEFAULT_FAST_MESSAGES: string[] = [
   'Talk to you soon 👋'
 ];
 
+type LangOption = {code: string, label: string};
+
+const MY_LANGUAGES: LangOption[] = [
+  {code: 'my', label: 'Burmese'},
+  {code: 'en', label: 'English'},
+  {code: 'th', label: 'Thai'},
+  {code: 'zh', label: 'Chinese'},
+  {code: 'es', label: 'Spanish'},
+  {code: 'fr', label: 'French'},
+  {code: 'ru', label: 'Russian'},
+  {code: 'ar', label: 'Arabic'},
+  {code: 'hi', label: 'Hindi'},
+  {code: 'ja', label: 'Japanese'},
+  {code: 'ko', label: 'Korean'},
+  {code: 'pt', label: 'Portuguese'},
+  {code: 'de', label: 'German'},
+  {code: 'it', label: 'Italian'},
+  {code: 'vi', label: 'Vietnamese'},
+  {code: 'id', label: 'Indonesian'},
+  {code: 'tr', label: 'Turkish'}
+];
+
+const CLIENT_LANGUAGES: LangOption[] = [
+  {code: 'es-MX', label: 'Spanish / Mexico'},
+  {code: 'es-ES', label: 'Spanish / Spain'},
+  {code: 'es-AR', label: 'Spanish / Argentina'},
+  {code: 'en-US', label: 'English / US'},
+  {code: 'en-GB', label: 'English / UK'},
+  {code: 'pt-BR', label: 'Portuguese / Brazil'},
+  {code: 'pt-PT', label: 'Portuguese / Portugal'},
+  {code: 'zh-CN', label: 'Chinese / Simplified'},
+  {code: 'zh-TW', label: 'Chinese / Traditional'},
+  {code: 'fr-FR', label: 'French / France'},
+  {code: 'de-DE', label: 'German / Germany'},
+  {code: 'ja-JP', label: 'Japanese / Japan'},
+  {code: 'ko-KR', label: 'Korean / Korea'},
+  {code: 'ru-RU', label: 'Russian / Russia'},
+  {code: 'ar-SA', label: 'Arabic / Saudi Arabia'},
+  {code: 'hi-IN', label: 'Hindi / India'},
+  {code: 'th-TH', label: 'Thai / Thailand'},
+  {code: 'vi-VN', label: 'Vietnamese / Vietnam'},
+  {code: 'id-ID', label: 'Indonesian / Indonesia'},
+  {code: 'tr-TR', label: 'Turkish / Turkey'},
+  {code: 'my-MM', label: 'Burmese / Myanmar'}
+];
+
+const LAYOUT_STYLES: {value: 'custom', label: string}[] = [
+  {value: 'custom', label: 'Custom (Incoming: Orig-Top, Outgoing: Trans-Top)'}
+];
+
 let initialized = false;
 
 const insertFastMessage = (text: string) => {
@@ -54,13 +106,16 @@ const insertFastMessage = (text: string) => {
   input.insertAtCaret(text, undefined, false);
 };
 
-const openLanguageFormatSettings = async() => {
-  const {default: AppLanguageFormatSettingsTab} = await import(
-    '@components/sidebarLeft/tabs/languageFormatSettings'
-  );
-  const tab = appSidebarRight.createTab(AppLanguageFormatSettingsTab);
-  tab.open();
-  appSidebarRight.toggleSidebar(true);
+type TabId = 'fast' | 'lang';
+
+type TabHeader = {
+  title: string;
+  subtitle: string;
+};
+
+const TAB_HEADERS: Record<TabId, TabHeader> = {
+  fast: {title: 'Fast Messages', subtitle: 'Click a message to insert it'},
+  lang: {title: 'Language Format', subtitle: 'Configure two-way translation'}
 };
 
 export const initFastMessagesSidebar = () => {
@@ -78,6 +133,9 @@ export const initFastMessagesSidebar = () => {
     setAppSettings('fastMessages', DEFAULT_FAST_MESSAGES.slice());
   }
 
+  // Kick off cross-device sync via Saved Messages.
+  initFastMessagesCloudSync();
+
   // -- DOM scaffolding --------------------------------------------------------
   const root = document.createElement('div');
   root.className = 'fast-sidebar';
@@ -93,11 +151,9 @@ export const initFastMessagesSidebar = () => {
 
   const title = document.createElement('div');
   title.className = 'fast-sidebar__title';
-  title.textContent = 'Fast Messages';
 
   const subtitle = document.createElement('div');
   subtitle.className = 'fast-sidebar__subtitle';
-  subtitle.textContent = 'Click a message to insert it';
 
   titleWrap.append(title, subtitle);
 
@@ -109,29 +165,51 @@ export const initFastMessagesSidebar = () => {
   headerRow.append(titleWrap, editToggle);
   header.append(headerRow);
 
+  // Tab strip --------------------------------------------------------------
+  const tabs = document.createElement('div');
+  tabs.className = 'fast-sidebar__tabs';
+  tabs.setAttribute('role', 'tablist');
+
+  const fastTabBtn = document.createElement('button');
+  fastTabBtn.type = 'button';
+  fastTabBtn.className = 'fast-sidebar__tab';
+  fastTabBtn.dataset.tab = 'fast';
+  fastTabBtn.setAttribute('role', 'tab');
+  fastTabBtn.textContent = 'Fast Messages';
+
+  const langTabBtn = document.createElement('button');
+  langTabBtn.type = 'button';
+  langTabBtn.className = 'fast-sidebar__tab';
+  langTabBtn.dataset.tab = 'lang';
+  langTabBtn.setAttribute('role', 'tab');
+  langTabBtn.textContent = 'Language Format';
+
+  tabs.append(fastTabBtn, langTabBtn);
+
+  // Panels -----------------------------------------------------------------
+  const panels = document.createElement('div');
+  panels.className = 'fast-sidebar__panels';
+
+  const fastPanel = document.createElement('div');
+  fastPanel.className = 'fast-sidebar__panel fast-sidebar__panel--fast';
+  fastPanel.setAttribute('role', 'tabpanel');
+
   const list = document.createElement('div');
   list.className = 'fast-sidebar__list';
+  fastPanel.append(list);
 
-  const footer = document.createElement('div');
-  footer.className = 'fast-sidebar__footer';
+  const langPanel = document.createElement('div');
+  langPanel.className = 'fast-sidebar__panel fast-sidebar__panel--lang';
+  langPanel.setAttribute('role', 'tabpanel');
 
-  const langBtn = document.createElement('button');
-  langBtn.type = 'button';
-  langBtn.className = 'fast-sidebar__btn';
-  langBtn.textContent = 'Language Format Settings';
-  langBtn.addEventListener('click', () => {
-    openLanguageFormatSettings().catch((err) => {
-      console.error('[fast-sidebar] failed to open language format settings', err);
-    });
-  });
+  panels.append(fastPanel, langPanel);
 
-  footer.append(langBtn);
-
-  root.append(header, list, footer);
+  root.append(header, tabs, panels);
   container.append(root);
 
   // -- State ------------------------------------------------------------------
   let editing = false;
+  let activeTab: TabId = 'fast';
 
   const persist = (next: string[]) => {
     setAppSettings('fastMessages', next);
@@ -163,7 +241,7 @@ export const initFastMessagesSidebar = () => {
     persist(current);
   };
 
-  // -- Rendering --------------------------------------------------------------
+  // -- Rendering: Fast Messages ----------------------------------------------
   const renderViewSlot = (text: string): HTMLElement => {
     const slot = document.createElement('button');
     slot.type = 'button';
@@ -254,22 +332,174 @@ export const initFastMessagesSidebar = () => {
     }
   };
 
+  // -- Rendering: Language Format -------------------------------------------
+  const renderLanguagePanel = () => {
+    langPanel.innerHTML = '';
+
+    const buildToggleRow = (
+      labelText: string,
+      get: () => boolean,
+      set: (next: boolean) => void
+    ) => {
+      const row = document.createElement('label');
+      row.className = 'fast-sidebar__lang-row';
+
+      const label = document.createElement('span');
+      label.className = 'fast-sidebar__lang-row-label';
+      label.textContent = labelText;
+
+      const input = document.createElement('input');
+      input.type = 'checkbox';
+      input.className = 'fast-sidebar__lang-toggle';
+      input.checked = !!get();
+      input.addEventListener('change', () => set(input.checked));
+
+      row.append(label, input);
+      return row;
+    };
+
+    const buildSelectRow = <T extends string>(
+      labelText: string,
+      options: {value: T, label: string}[],
+      get: () => T,
+      set: (value: T) => void
+    ) => {
+      const row = document.createElement('div');
+      row.className = 'fast-sidebar__lang-row';
+
+      const label = document.createElement('span');
+      label.className = 'fast-sidebar__lang-row-label';
+      label.textContent = labelText;
+
+      const select = document.createElement('select');
+      select.className = 'fast-sidebar__lang-select';
+      const current = get();
+      let hasMatch = false;
+      for(const opt of options) {
+        const o = document.createElement('option');
+        o.value = opt.value;
+        o.textContent = opt.label;
+        if(opt.value === current) {
+          o.selected = true;
+          hasMatch = true;
+        }
+        select.append(o);
+      }
+      if(!hasMatch && options.length) {
+        select.value = options[0].value;
+      }
+      select.addEventListener('change', () => set(select.value as T));
+
+      row.append(label, select);
+      return row;
+    };
+
+    const lf = appSettings.languageFormat ?? {} as any;
+
+    const sectionToggles = document.createElement('div');
+    sectionToggles.className = 'fast-sidebar__lang-section';
+
+    const sectionTogglesTitle = document.createElement('div');
+    sectionTogglesTitle.className = 'fast-sidebar__lang-section-title';
+    sectionTogglesTitle.textContent = 'Two-Way Translation';
+    sectionToggles.append(sectionTogglesTitle);
+
+    sectionToggles.append(buildToggleRow(
+      'Enable two-way translation',
+      () => !!lf.enabled,
+      (v) => setAppSettings('languageFormat', 'enabled', v)
+    ));
+    sectionToggles.append(buildToggleRow(
+      'Auto-translate voice messages',
+      () => !!lf.autoTranslateVoice,
+      (v) => setAppSettings('languageFormat', 'autoTranslateVoice', v)
+    ));
+
+    const sectionLangs = document.createElement('div');
+    sectionLangs.className = 'fast-sidebar__lang-section';
+
+    const sectionLangsTitle = document.createElement('div');
+    sectionLangsTitle.className = 'fast-sidebar__lang-section-title';
+    sectionLangsTitle.textContent = 'Languages';
+    sectionLangs.append(sectionLangsTitle);
+
+    sectionLangs.append(buildSelectRow(
+      'Your language',
+      MY_LANGUAGES.map((o) => ({value: o.code, label: o.label})),
+      () => (lf.myLanguage ?? 'my') as string,
+      (v) => setAppSettings('languageFormat', 'myLanguage', v)
+    ));
+    sectionLangs.append(buildSelectRow(
+      'Client language',
+      CLIENT_LANGUAGES.map((o) => ({value: o.code, label: o.label})),
+      () => (lf.clientLanguage ?? 'es-MX') as string,
+      (v) => setAppSettings('languageFormat', 'clientLanguage', v)
+    ));
+    sectionLangs.append(buildSelectRow(
+      'Layout style',
+      LAYOUT_STYLES.map((o) => ({value: o.value, label: o.label})),
+      () => (lf.layoutStyle ?? 'custom') as 'custom',
+      (v) => setAppSettings('languageFormat', 'layoutStyle', v)
+    ));
+
+    langPanel.append(sectionToggles, sectionLangs);
+  };
+
+  // -- Tab control ----------------------------------------------------------
+  const setActiveTab = (id: TabId) => {
+    activeTab = id;
+    fastTabBtn.classList.toggle('is-active', id === 'fast');
+    langTabBtn.classList.toggle('is-active', id === 'lang');
+    fastTabBtn.setAttribute('aria-selected', String(id === 'fast'));
+    langTabBtn.setAttribute('aria-selected', String(id === 'lang'));
+    fastPanel.classList.toggle('is-active', id === 'fast');
+    langPanel.classList.toggle('is-active', id === 'lang');
+
+    // Edit toggle is only meaningful on the Fast Messages tab.
+    editToggle.style.display = id === 'fast' ? '' : 'none';
+
+    refreshHeader();
+
+    if(id === 'lang') {
+      renderLanguagePanel();
+    }
+  };
+
+  const refreshHeader = () => {
+    const base = TAB_HEADERS[activeTab];
+    title.textContent = base.title;
+    if(activeTab === 'fast') {
+      subtitle.textContent = editing ?
+        'Edit, reorder or remove messages' :
+        base.subtitle;
+    } else {
+      subtitle.textContent = base.subtitle;
+    }
+  };
+
+  fastTabBtn.addEventListener('click', () => setActiveTab('fast'));
+  langTabBtn.addEventListener('click', () => setActiveTab('lang'));
+
   editToggle.addEventListener('click', () => {
     editing = !editing;
     editToggle.textContent = editing ? 'Done' : 'Edit';
     editToggle.classList.toggle('is-active', editing);
-    subtitle.textContent = editing ?
-      'Edit, reorder or remove messages' :
-      'Click a message to insert it';
+    refreshHeader();
     renderList();
   });
 
-  // React to settings changes (initial load + saves) via a Solid effect.
+  // React to settings changes (initial load + saves) via Solid effects so the
+  // UI always reflects the current store contents.
   createRoot(() => {
     createEffect(on(() => unwrap(appSettings.fastMessages), () => {
-      renderList();
+      if(activeTab === 'fast') renderList();
+    }));
+    createEffect(on(() => unwrap(appSettings.languageFormat), () => {
+      if(activeTab === 'lang') renderLanguagePanel();
     }));
   });
+
+  setActiveTab('fast');
 };
 
 export default initFastMessagesSidebar;

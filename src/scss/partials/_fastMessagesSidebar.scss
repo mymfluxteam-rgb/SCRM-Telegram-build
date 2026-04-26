@@ -1,6 +1,6 @@
 /*
- * Fast Messages Sidebar — vertical menu on the right with predefined messages
- * and language format settings.
+ * Fast Messages Sidebar — vertical menu on the right with a tab control that
+ * exposes Fast Messages and Language Format Settings.
  */
 
 @use "../shared" as *;
@@ -48,7 +48,7 @@ $fast-sidebar-width: 16rem;
 
   &__header {
     flex: 0 0 auto;
-    padding: .875rem 1rem;
+    padding: .875rem 1rem .625rem;
     border-bottom: 1px solid var(--border-color);
 
     .fast-sidebar__header-row {
@@ -101,14 +101,57 @@ $fast-sidebar-width: 16rem;
     }
   }
 
-  &__list {
+  /* Tab strip ------------------------------------------------------------ */
+  &__tabs {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: stretch;
+    border-bottom: 1px solid var(--border-color);
+    background-color: var(--surface-color);
+  }
+
+  &__tab {
+    flex: 1 1 0;
+    background: transparent;
+    border: none;
+    color: var(--secondary-text-color);
+    font-family: inherit;
+    font-size: .8125rem;
+    font-weight: var(--font-weight-bold);
+    padding: .625rem .25rem;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color .15s ease, border-color .15s ease, background-color .15s ease;
+    white-space: nowrap;
+
+    &:hover {
+      background-color: var(--light-primary-color, rgba(0, 122, 255, .06));
+      color: var(--primary-text-color);
+    }
+
+    &.is-active {
+      color: var(--primary-color);
+      border-bottom-color: var(--primary-color);
+    }
+  }
+
+  /* Panel container ------------------------------------------------------ */
+  &__panels {
+    flex: 1 1 auto;
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    min-height: 0;
+  }
+
+  &__panel {
     flex: 1 1 auto;
     overflow-y: auto;
     overflow-x: hidden;
     padding: .5rem .75rem;
-    display: flex;
+    display: none;
     flex-direction: column;
-    gap: .5rem;
+    min-height: 0;
 
     /* Match the existing scrollbar styling used in the right sidebar */
     scrollbar-width: thin;
@@ -126,6 +169,17 @@ $fast-sidebar-width: 16rem;
     &::-webkit-scrollbar-track {
       background: transparent;
     }
+
+    &.is-active {
+      display: flex;
+    }
+  }
+
+  /* Fast messages list -------------------------------------------------- */
+  &__list {
+    display: flex;
+    flex-direction: column;
+    gap: .5rem;
   }
 
   &__slot {
@@ -259,38 +313,107 @@ $fast-sidebar-width: 16rem;
     padding: 1rem .5rem;
   }
 
-  &__footer {
-    flex: 0 0 auto;
-    padding: .75rem 1rem;
-    border-top: 1px solid var(--border-color);
+  /* Language Format panel ------------------------------------------------ */
+  &__lang-section {
     display: flex;
     flex-direction: column;
-    gap: .5rem;
+    gap: .375rem;
+    padding: .25rem 0 1rem;
+
+    & + .fast-sidebar__lang-section {
+      border-top: 1px solid var(--border-color);
+      padding-top: .75rem;
+    }
   }
 
-  &__btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: .5rem;
-    width: 100%;
-    background-color: var(--primary-color);
-    color: #fff;
-    border: none;
-    border-radius: $border-radius-medium;
-    padding: .625rem .75rem;
-    font-size: .875rem;
+  &__lang-section-title {
+    font-size: .75rem;
     font-weight: var(--font-weight-bold);
-    cursor: pointer;
-    transition: filter .15s ease;
-    font-family: inherit;
+    color: var(--secondary-text-color);
+    text-transform: uppercase;
+    letter-spacing: .03em;
+    margin-bottom: .125rem;
+  }
+
+  &__lang-row {
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+    padding: .375rem .25rem;
+    border-radius: $border-radius;
 
     &:hover {
-      filter: brightness(1.05);
+      background-color: var(--light-primary-color, rgba(0, 0, 0, .03));
     }
 
-    &:active {
-      filter: brightness(.95);
+    .fast-sidebar__lang-row-label {
+      font-size: .8125rem;
+      color: var(--primary-text-color);
+      line-height: 1.25;
+    }
+  }
+
+  /* Toggle rows lay out the label and switch on the same line. */
+  &__lang-row:has(.fast-sidebar__lang-toggle) {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+    cursor: pointer;
+  }
+
+  &__lang-toggle {
+    appearance: none;
+    width: 2.25rem;
+    height: 1.25rem;
+    background-color: var(--border-color);
+    border-radius: 999px;
+    position: relative;
+    cursor: pointer;
+    transition: background-color .15s ease;
+    flex: 0 0 auto;
+
+    &::after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      inset-inline-start: 2px;
+      width: 1rem;
+      height: 1rem;
+      background-color: #fff;
+      border-radius: 50%;
+      transition: transform .15s ease;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, .25);
+    }
+
+    &:checked {
+      background-color: var(--primary-color);
+    }
+
+    &:checked::after {
+      transform: translateX(1rem);
+    }
+
+    [dir="rtl"] &:checked::after {
+      transform: translateX(-1rem);
+    }
+  }
+
+  &__lang-select {
+    width: 100%;
+    box-sizing: border-box;
+    background-color: var(--surface-color);
+    color: var(--primary-text-color);
+    border: 1px solid var(--border-color);
+    border-radius: $border-radius;
+    padding: .375rem .5rem;
+    font-size: .8125rem;
+    font-family: inherit;
+    cursor: pointer;
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary-color);
     }
   }
 }
