@@ -18,28 +18,36 @@ import appImManager from '@lib/appImManager';
 import {useAppSettings} from '@stores/appSettings';
 import initFastMessagesCloudSync from '@lib/fastMessagesCloudSync';
 import initFastMessagesAutoReply from '@lib/fastMessagesAutoReply';
+import {normaliseFastMessages} from '@lib/fastMessagesUtils';
+import type {FastMessageMatchMode, FastMessageRule} from '@config/state';
 
-const DEFAULT_FAST_MESSAGES: string[] = [
-  'Hello! 👋 How are you today?',
-  'Thanks for your message, I will get back to you soon.',
-  'Sorry, I am busy right now. Can we talk later?',
-  'Got it, thanks!',
-  'On my way 🚗',
-  'Please send me the details.',
-  'Sounds good to me 👍',
-  'Let me check and confirm.',
-  'Have a great day! 🌟',
-  'Good morning! ☀️',
-  'Good night 🌙',
-  'Happy birthday! 🎉🎂',
-  'Congratulations! 🎊',
-  'I am in a meeting. Will reply later.',
-  'Please share your phone number.',
-  'Where are you?',
-  'Yes, that works for me.',
-  'No problem at all 🙂',
-  'I appreciate your help, thank you!',
-  'Talk to you soon 👋'
+const DEFAULT_FAST_MESSAGES: FastMessageRule[] = [
+  {trigger: 'hi', reply: 'Hello! 👋 How are you today?', match: 'contains'},
+  {trigger: 'message', reply: 'Thanks for your message, I will get back to you soon.', match: 'contains'},
+  {trigger: 'busy', reply: 'Sorry, I am busy right now. Can we talk later?', match: 'contains'},
+  {trigger: 'thanks', reply: 'Got it, thanks!', match: 'contains'},
+  {trigger: 'where are you', reply: 'On my way 🚗', match: 'contains'},
+  {trigger: 'details', reply: 'Please send me the details.', match: 'contains'},
+  {trigger: 'ok', reply: 'Sounds good to me 👍', match: 'exact'},
+  {trigger: 'check', reply: 'Let me check and confirm.', match: 'contains'},
+  {trigger: 'have a good day', reply: 'Have a great day! 🌟', match: 'contains'},
+  {trigger: 'good morning', reply: 'Good morning! ☀️', match: 'contains'},
+  {trigger: 'good night', reply: 'Good night 🌙', match: 'contains'},
+  {trigger: 'birthday', reply: 'Happy birthday! 🎉🎂', match: 'contains'},
+  {trigger: 'congrats', reply: 'Congratulations! 🎊', match: 'contains'},
+  {trigger: 'meeting', reply: 'I am in a meeting. Will reply later.', match: 'contains'},
+  {trigger: 'phone number', reply: 'Please share your phone number.', match: 'contains'},
+  {trigger: 'where are you?', reply: 'Where are you?', match: 'exact'},
+  {trigger: 'works for you', reply: 'Yes, that works for me.', match: 'contains'},
+  {trigger: 'sorry', reply: 'No problem at all 🙂', match: 'contains'},
+  {trigger: 'thank you', reply: 'I appreciate your help, thank you!', match: 'contains'},
+  {trigger: 'bye', reply: 'Talk to you soon 👋', match: 'contains'}
+];
+
+const MATCH_OPTIONS: {value: FastMessageMatchMode, label: string}[] = [
+  {value: 'exact', label: 'Exact match'},
+  {value: 'contains', label: 'Contains'},
+  {value: 'startsWith', label: 'Starts with'}
 ];
 
 type LangOption = {code: string, label: string};
@@ -130,8 +138,17 @@ export const initFastMessagesSidebar = () => {
   const [appSettings, setAppSettings] = useAppSettings();
 
   // Seed defaults for users whose stored state predates the fastMessages key.
+  // Also migrate legacy `string[]` entries into the new {trigger, reply, match}
+  // rule shape so older devices/state files keep working.
   if(!Array.isArray(appSettings.fastMessages)) {
-    setAppSettings('fastMessages', DEFAULT_FAST_MESSAGES.slice());
+    setAppSettings('fastMessages', DEFAULT_FAST_MESSAGES.map((r) => ({...r})));
+  } else {
+    const normalised = normaliseFastMessages(appSettings.fastMessages);
+    const before = JSON.stringify(appSettings.fastMessages);
+    const after = JSON.stringify(normalised);
+    if(before !== after) {
+      setAppSettings('fastMessages', normalised);
+    }
   }
 
   // Kick off cross-device sync via Saved Messages.
@@ -234,24 +251,28 @@ export const initFastMessagesSidebar = () => {
   let editing = false;
   let activeTab: TabId = 'fast';
 
-  const persist = (next: string[]) => {
+  const persist = (next: FastMessageRule[]) => {
     setAppSettings('fastMessages', next);
   };
 
-  const updateMessage = (index: number, text: string) => {
-    const current = (appSettings.fastMessages ?? []).slice();
-    current[index] = text;
+  const cloneCurrent = (): FastMessageRule[] =>
+    normaliseFastMessages(appSettings.fastMessages).map((r) => ({...r}));
+
+  const updateRule = (index: number, patch: Partial<FastMessageRule>) => {
+    const current = cloneCurrent();
+    if(!current[index]) return;
+    current[index] = {...current[index], ...patch};
     persist(current);
   };
 
   const removeMessage = (index: number) => {
-    const current = (appSettings.fastMessages ?? []).slice();
+    const current = cloneCurrent();
     current.splice(index, 1);
     persist(current);
   };
 
   const moveMessage = (index: number, direction: -1 | 1) => {
-    const current = (appSettings.fastMessages ?? []).slice();
+    const current = cloneCurrent();
     const target = index + direction;
     if(target < 0 || target >= current.length) return;
     [current[index], current[target]] = [current[target], current[index]];
@@ -259,37 +280,88 @@ export const initFastMessagesSidebar = () => {
   };
 
   const addMessage = () => {
-    const current = (appSettings.fastMessages ?? []).slice();
-    current.push('New fast message');
+    const current = cloneCurrent();
+    current.push({trigger: '', reply: 'New fast message', match: 'contains'});
     persist(current);
   };
 
   // -- Rendering: Fast Messages ----------------------------------------------
-  const renderViewSlot = (text: string): HTMLElement => {
+  const renderViewSlot = (rule: FastMessageRule): HTMLElement => {
     const slot = document.createElement('button');
     slot.type = 'button';
     slot.className = 'fast-sidebar__slot';
-    slot.textContent = text;
     slot.title = 'Click to insert into the message box';
-    slot.addEventListener('click', () => insertFastMessage(text));
+
+    const replyText = document.createElement('div');
+    replyText.className = 'fast-sidebar__slot-reply';
+    replyText.textContent = rule.reply;
+    slot.append(replyText);
+
+    if(rule.trigger) {
+      const meta = document.createElement('div');
+      meta.className = 'fast-sidebar__slot-meta';
+      const modeLabel = MATCH_OPTIONS.find((o) => o.value === rule.match)?.label ?? rule.match;
+      meta.textContent = `Trigger (${modeLabel}): "${rule.trigger}"`;
+      slot.append(meta);
+    }
+
+    slot.addEventListener('click', () => insertFastMessage(rule.reply));
     return slot;
   };
 
-  const renderEditSlot = (text: string, index: number, total: number): HTMLElement => {
+  const renderEditSlot = (rule: FastMessageRule, index: number, total: number): HTMLElement => {
     const slot = document.createElement('div');
     slot.className = 'fast-sidebar__slot fast-sidebar__slot--editing';
 
+    // Trigger row: keyword input + match-mode select.
+    const triggerRow = document.createElement('div');
+    triggerRow.className = 'fast-sidebar__slot-trigger-row';
+
+    const triggerInput = document.createElement('input');
+    triggerInput.type = 'text';
+    triggerInput.className = 'fast-sidebar__slot-trigger-input';
+    triggerInput.value = rule.trigger;
+    triggerInput.placeholder = 'Trigger keyword';
+    triggerInput.addEventListener('change', () => {
+      updateRule(index, {trigger: triggerInput.value});
+    });
+    triggerInput.addEventListener('blur', () => {
+      if(triggerInput.value !== rule.trigger) {
+        updateRule(index, {trigger: triggerInput.value});
+      }
+    });
+
+    const modeSelect = document.createElement('select');
+    modeSelect.className = 'fast-sidebar__slot-mode-select';
+    modeSelect.title = 'Matching mode';
+    for(const opt of MATCH_OPTIONS) {
+      const o = document.createElement('option');
+      o.value = opt.value;
+      o.textContent = opt.label;
+      if(opt.value === rule.match) o.selected = true;
+      modeSelect.append(o);
+    }
+    modeSelect.addEventListener('change', () => {
+      updateRule(index, {match: modeSelect.value as FastMessageMatchMode});
+    });
+
+    triggerRow.append(triggerInput, modeSelect);
+
+    // Reply row: textarea + side action buttons.
+    const replyRow = document.createElement('div');
+    replyRow.className = 'fast-sidebar__slot-reply-row';
+
     const textarea = document.createElement('textarea');
     textarea.className = 'fast-sidebar__slot-input';
-    textarea.value = text;
+    textarea.value = rule.reply;
     textarea.rows = 2;
-    textarea.placeholder = 'Message text';
+    textarea.placeholder = 'Reply text';
     textarea.addEventListener('change', () => {
-      updateMessage(index, textarea.value);
+      updateRule(index, {reply: textarea.value});
     });
     textarea.addEventListener('blur', () => {
-      if(textarea.value !== text) {
-        updateMessage(index, textarea.value);
+      if(textarea.value !== rule.reply) {
+        updateRule(index, {reply: textarea.value});
       }
     });
 
@@ -320,13 +392,15 @@ export const initFastMessagesSidebar = () => {
     delBtn.addEventListener('click', () => removeMessage(index));
 
     actions.append(upBtn, downBtn, delBtn);
-    slot.append(textarea, actions);
+    replyRow.append(textarea, actions);
+
+    slot.append(triggerRow, replyRow);
     return slot;
   };
 
   const renderList = () => {
     list.innerHTML = '';
-    const messages = appSettings.fastMessages ?? [];
+    const messages = normaliseFastMessages(appSettings.fastMessages);
 
     if(messages.length === 0) {
       const empty = document.createElement('div');
@@ -336,12 +410,12 @@ export const initFastMessagesSidebar = () => {
         'No fast messages. Click Edit to add some.';
       list.append(empty);
     } else if(editing) {
-      messages.forEach((text, index) => {
-        list.append(renderEditSlot(text, index, messages.length));
+      messages.forEach((rule, index) => {
+        list.append(renderEditSlot(rule, index, messages.length));
       });
     } else {
-      messages.forEach((text) => {
-        list.append(renderViewSlot(text));
+      messages.forEach((rule) => {
+        list.append(renderViewSlot(rule));
       });
     }
 

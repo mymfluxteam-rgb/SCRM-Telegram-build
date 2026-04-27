@@ -18,16 +18,19 @@ import {unwrap} from 'solid-js/store';
 import rootScope from '@lib/rootScope';
 import {useAppSettings} from '@stores/appSettings';
 import type {Message} from '@layer';
+import type {FastMessageRule} from '@config/state';
+import {normaliseFastMessages} from './fastMessagesUtils';
 
-const MARKER_PREFIX = '[TWEB_FAST_MSG_SYNC_v1]';
+const MARKER_PREFIX_V1 = '[TWEB_FAST_MSG_SYNC_v1]';
+const MARKER_PREFIX_V2 = '[TWEB_FAST_MSG_SYNC_v2]';
 const MARKER_HEADER = '🔒 TWeb Fast Messages Sync (do not edit)';
 const SAVE_DEBOUNCE_MS = 3000;
 const MAX_PINNED_TO_SCAN = 50;
 
 type CloudPayload = {
-  v: 1;
+  v: 2;
   updatedAt: number;
-  messages: string[];
+  messages: FastMessageRule[];
 };
 
 let initialized = false;
@@ -42,35 +45,65 @@ const log = (...args: any[]) => {
   console.debug('[fast-messages-sync]', ...args);
 };
 
-const buildMarkerText = (messages: string[]): string => {
+const buildMarkerText = (messages: FastMessageRule[]): string => {
   const payload: CloudPayload = {
-    v: 1,
+    v: 2,
     updatedAt: Date.now(),
     messages
   };
-  return `${MARKER_HEADER}\n${MARKER_PREFIX}\n${JSON.stringify(payload)}`;
+  return `${MARKER_HEADER}\n${MARKER_PREFIX_V2}\n${JSON.stringify(payload)}`;
 };
 
 const tryParseMarker = (text: string | undefined | null): CloudPayload | undefined => {
-  if(!text || text.indexOf(MARKER_PREFIX) === -1) return undefined;
-  const idx = text.indexOf(MARKER_PREFIX);
-  const jsonPart = text.slice(idx + MARKER_PREFIX.length).trim();
-  if(!jsonPart) return undefined;
-  try {
-    const parsed = JSON.parse(jsonPart) as CloudPayload;
-    if(parsed?.v === 1 && Array.isArray(parsed.messages)) {
-      return parsed;
+  if(!text) return undefined;
+
+  // Newest format: v2 (Trigger / Reply / Match objects).
+  let idx = text.indexOf(MARKER_PREFIX_V2);
+  if(idx !== -1) {
+    const jsonPart = text.slice(idx + MARKER_PREFIX_V2.length).trim();
+    if(!jsonPart) return undefined;
+    try {
+      const parsed = JSON.parse(jsonPart);
+      const messages = normaliseFastMessages(parsed?.messages);
+      return {
+        v: 2,
+        updatedAt: Number(parsed?.updatedAt) || 0,
+        messages
+      };
+    } catch(err) {
+      log('failed to parse v2 marker payload', err);
     }
-  } catch(err) {
-    log('failed to parse marker payload', err);
+    return undefined;
+  }
+
+  // Legacy v1 (string[] of replies) — coerce into rule objects.
+  idx = text.indexOf(MARKER_PREFIX_V1);
+  if(idx !== -1) {
+    const jsonPart = text.slice(idx + MARKER_PREFIX_V1.length).trim();
+    if(!jsonPart) return undefined;
+    try {
+      const parsed = JSON.parse(jsonPart);
+      const messages = normaliseFastMessages(parsed?.messages);
+      return {
+        v: 2,
+        updatedAt: Number(parsed?.updatedAt) || 0,
+        messages
+      };
+    } catch(err) {
+      log('failed to parse v1 marker payload', err);
+    }
   }
   return undefined;
 };
 
-const arraysEqual = (a: string[], b: string[]): boolean => {
+const rulesEqual = (a: FastMessageRule[], b: FastMessageRule[]): boolean => {
   if(a === b) return true;
   if(a.length !== b.length) return false;
-  for(let i = 0; i < a.length; i++) if(a[i] !== b[i]) return false;
+  for(let i = 0; i < a.length; i++) {
+    if(a[i].trigger !== b[i].trigger) return false;
+    if(a[i].reply !== b[i].reply) return false;
+    if(a[i].match !== b[i].match) return false;
+  }
   return true;
 };
 
@@ -126,10 +159,10 @@ const pullFromCloud = async(): Promise<boolean> => {
   const winner = markers[0];
 
   const [appSettings, setAppSettings] = useAppSettings();
-  const local = appSettings.fastMessages ?? [];
-  const remote = winner.payload.messages.filter((s) => typeof s === 'string');
+  const local = normaliseFastMessages(appSettings.fastMessages);
+  const remote = winner.payload.messages;
 
-  if(arraysEqual(local, remote)) {
+  if(rulesEqual(local, remote)) {
     lastSyncedJson = JSON.stringify(remote);
     return true;
   }
@@ -148,7 +181,7 @@ const pullFromCloud = async(): Promise<boolean> => {
   return true;
 };
 
-const performSave = async(messages: string[]): Promise<void> => {
+const performSave = async(messages: FastMessageRule[]): Promise<void> => {
   const myPeerId = rootScope.myId;
   if(!myPeerId) return;
 
@@ -228,9 +261,9 @@ const waitForOurMarker = async(
   return undefined;
 };
 
-const scheduleSave = (messages: string[]) => {
+const scheduleSave = (messages: FastMessageRule[]) => {
   if(saveTimer) clearTimeout(saveTimer);
-  const snapshot = messages.slice();
+  const snapshot = messages.map((m) => ({...m}));
   saveTimer = setTimeout(() => {
     saveTimer = undefined;
     // Serialise saves so concurrent updates don't race.
@@ -259,9 +292,10 @@ export const initFastMessagesCloudSync = () => {
     createEffect(on(() => unwrap(appSettings.fastMessages), (messages) => {
       if(!Array.isArray(messages)) return;
       if(applyingRemoteUpdate) return;
-      const json = JSON.stringify(messages);
+      const normalised = normaliseFastMessages(messages);
+      const json = JSON.stringify(normalised);
       if(json === lastSyncedJson) return;
-      scheduleSave(messages);
+      scheduleSave(normalised);
     }, {defer: true}));
   });
 };

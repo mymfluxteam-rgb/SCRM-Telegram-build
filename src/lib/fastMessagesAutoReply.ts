@@ -2,9 +2,9 @@
  * Fast Messages — Quick Auto Reply
  *
  * When the "Quick Auto Reply" toggle in the Fast Messages sidebar is on, this
- * module listens for incoming messages and, if the message text contains one
- * of the user's saved Fast Messages (case-insensitive), automatically replies
- * with that same Fast Message.
+ * module listens for incoming messages and, if the message text matches one
+ * of the user's saved Fast Message rules (Trigger Keyword + matching mode),
+ * automatically replies with the rule's Reply Text.
  *
  * Loop prevention:
  *   - Outgoing messages (`pFlags.out`) are ignored.
@@ -12,13 +12,14 @@
  *   - Messages from the current user (Saved Messages, other devices) are
  *     ignored so the sync marker / our own auto-reply cannot retrigger it.
  *   - Each peer is throttled (one auto-reply per `THROTTLE_MS` window).
- *   - Messages we just auto-replied with are remembered for a short window so
- *     that an echo from the other side does not fire again.
+ *   - Reply texts we just auto-sent are remembered for a short window so that
+ *     an echo from the other side does not fire again.
  */
 
 import type {Message} from '../layer';
 import rootScope from './rootScope';
 import {appSettings} from '@stores/appSettings';
+import {findMatchingRule, normaliseFastMessages} from './fastMessagesUtils';
 
 const THROTTLE_MS = 30_000;
 const RECENT_REPLY_TTL_MS = 60_000;
@@ -26,7 +27,7 @@ const RECENT_REPLY_TTL_MS = 60_000;
 let initialized = false;
 
 const lastReplyAt = new Map<PeerId, number>();
-const recentReplies = new Map<string, number>(); // normalised text -> timestamp
+const recentReplies = new Map<string, number>(); // normalised reply text -> timestamp
 
 const now = () => Date.now();
 
@@ -38,30 +39,6 @@ const pruneRecentReplies = () => {
   for(const [text, ts] of recentReplies) {
     if(ts < cutoff) recentReplies.delete(text);
   }
-};
-
-const findMatch = (incoming: string): string | undefined => {
-  const list = appSettings.fastMessages ?? [];
-  if(!list.length) return undefined;
-
-  const haystack = normalise(incoming);
-  if(!haystack) return undefined;
-
-  // Prefer the longest matching phrase so a generic short phrase does not
-  // shadow a more specific one.
-  let best: string | undefined;
-  let bestLen = 0;
-  for(const phrase of list) {
-    const needle = normalise(phrase);
-    if(!needle) continue;
-    if(haystack === needle || haystack.includes(needle)) {
-      if(needle.length > bestLen) {
-        best = phrase;
-        bestLen = needle.length;
-      }
-    }
-  }
-  return best;
 };
 
 const handleIncoming = async(message: Message.message | Message.messageService) => {
@@ -93,7 +70,11 @@ const handleIncoming = async(message: Message.message | Message.messageService) 
   const incomingNorm = normalise(text);
   if(recentReplies.has(incomingNorm)) return;
 
-  const reply = findMatch(text);
+  const rules = normaliseFastMessages(appSettings.fastMessages);
+  const matched = findMatchingRule(rules, text);
+  if(!matched) return;
+
+  const reply = matched.reply;
   if(!reply) return;
 
   lastReplyAt.set(peerId, now());

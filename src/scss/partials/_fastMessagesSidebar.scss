@@ -284,6 +284,71 @@ $fast-sidebar-width: 16rem;
     }
   }
 
+  &__slot-reply {
+    font-size: .875rem;
+    line-height: 1.35;
+    color: var(--primary-text-color);
+    word-wrap: break-word;
+  }
+
+  &__slot-meta {
+    margin-top: .25rem;
+    font-size: .6875rem;
+    line-height: 1.2;
+    color: var(--secondary-text-color);
+    font-style: italic;
+    word-wrap: break-word;
+  }
+
+  &__slot-trigger-row {
+    display: flex;
+    gap: .25rem;
+    margin-bottom: .375rem;
+  }
+
+  &__slot-trigger-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    box-sizing: border-box;
+    background-color: var(--surface-color);
+    color: var(--primary-text-color);
+    border: 1px solid var(--border-color);
+    border-radius: $border-radius;
+    padding: .25rem .5rem;
+    font-size: .8125rem;
+    line-height: 1.35;
+    font-family: inherit;
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary-color);
+    }
+  }
+
+  &__slot-mode-select {
+    flex: 0 0 auto;
+    box-sizing: border-box;
+    background-color: var(--surface-color);
+    color: var(--primary-text-color);
+    border: 1px solid var(--border-color);
+    border-radius: $border-radius;
+    padding: .25rem .375rem;
+    font-size: .75rem;
+    font-family: inherit;
+    max-width: 7.5rem;
+
+    &:focus {
+      outline: none;
+      border-color: var(--primary-color);
+    }
+  }
+
+  &__slot-reply-row {
+    display: flex;
+    flex-direction: column;
+    gap: .25rem;
+  }
+
   &__slot-input {
     display: block;
     width: 100%;

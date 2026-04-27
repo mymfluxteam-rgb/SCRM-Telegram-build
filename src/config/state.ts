@@ -137,8 +137,16 @@ export type StateSettings = {
     clientLanguage: string,
     layoutStyle: 'custom'
   },
-  fastMessages: string[],
+  fastMessages: FastMessageRule[],
   autoReply: boolean,
+};
+
+export type FastMessageMatchMode = 'exact' | 'contains' | 'startsWith';
+
+export type FastMessageRule = {
+  trigger: string,
+  reply: string,
+  match: FastMessageMatchMode
 };
 
 // (1 - use swatch, 2 - use picker color), (color from swatch), (color from picker)
@@ -431,26 +439,26 @@ export const SETTINGS_INIT: StateSettings = {
     layoutStyle: 'custom'
   },
   fastMessages: [
-    'Hello! 👋 How are you today?',
-    'Thanks for your message, I will get back to you soon.',
-    'Sorry, I am busy right now. Can we talk later?',
-    'Got it, thanks!',
-    'On my way 🚗',
-    'Please send me the details.',
-    'Sounds good to me 👍',
-    'Let me check and confirm.',
-    'Have a great day! 🌟',
-    'Good morning! ☀️',
-    'Good night 🌙',
-    'Happy birthday! 🎉🎂',
-    'Congratulations! 🎊',
-    'I am in a meeting. Will reply later.',
-    'Please share your phone number.',
-    'Where are you?',
-    'Yes, that works for me.',
-    'No problem at all 🙂',
-    'I appreciate your help, thank you!',
-    'Talk to you soon 👋'
+    {trigger: 'hi', reply: 'Hello! 👋 How are you today?', match: 'contains'},
+    {trigger: 'message', reply: 'Thanks for your message, I will get back to you soon.', match: 'contains'},
+    {trigger: 'busy', reply: 'Sorry, I am busy right now. Can we talk later?', match: 'contains'},
+    {trigger: 'thanks', reply: 'Got it, thanks!', match: 'contains'},
+    {trigger: 'where are you', reply: 'On my way 🚗', match: 'contains'},
+    {trigger: 'details', reply: 'Please send me the details.', match: 'contains'},
+    {trigger: 'ok', reply: 'Sounds good to me 👍', match: 'exact'},
+    {trigger: 'check', reply: 'Let me check and confirm.', match: 'contains'},
+    {trigger: 'have a good day', reply: 'Have a great day! 🌟', match: 'contains'},
+    {trigger: 'good morning', reply: 'Good morning! ☀️', match: 'contains'},
+    {trigger: 'good night', reply: 'Good night 🌙', match: 'contains'},
+    {trigger: 'birthday', reply: 'Happy birthday! 🎉🎂', match: 'contains'},
+    {trigger: 'congrats', reply: 'Congratulations! 🎊', match: 'contains'},
+    {trigger: 'meeting', reply: 'I am in a meeting. Will reply later.', match: 'contains'},
+    {trigger: 'phone number', reply: 'Please share your phone number.', match: 'contains'},
+    {trigger: 'where are you?', reply: 'Where are you?', match: 'exact'},
+    {trigger: 'works for you', reply: 'Yes, that works for me.', match: 'contains'},
+    {trigger: 'sorry', reply: 'No problem at all 🙂', match: 'contains'},
+    {trigger: 'thank you', reply: 'I appreciate your help, thank you!', match: 'contains'},
+    {trigger: 'bye', reply: 'Talk to you soon 👋', match: 'contains'}
   ],
   autoReply: false
 };
