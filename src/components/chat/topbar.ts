@@ -74,7 +74,7 @@ import appDialogsManager from '@lib/appDialogsManager';
 import {createEffect, createRoot, on} from 'solid-js';
 import SolidJSHotReloadGuardProvider from '@lib/solidjs/hotReloadGuardProvider';
 import {AppAdminRecentActionsTab} from '@components/solidJsTabs/tabs';
-import {setAppSettings} from '@stores/appSettings';
+import {setAppSettings, useAppSettings} from '@stores/appSettings';
 import {wrapAsyncClickHandler} from '@helpers/wrapAsyncClickHandler';
 import liteMode from '@helpers/liteMode';
 import createSubmenuTrigger from '@components/createSubmenuTrigger';
@@ -477,7 +477,18 @@ export default class ChatTopbar {
       }
     };
 
-    this.menuButtons = [this.autoDeleteBtnMenuOptions, {
+    this.menuButtons = [{
+      // Custom: toggle the right-side Fast Messages sidebar from the chat
+      // top bar's More-actions menu. The sidebar is hidden by default and
+      // only slides in when this entry is clicked.
+      icon: 'comments',
+      regularText: 'Toggle Fast Messages',
+      onClick: () => {
+        const [appSettings, setAppSettings] = useAppSettings();
+        setAppSettings('fastMessagesSidebarOpen', !appSettings.fastMessagesSidebarOpen);
+      },
+      verify: () => true
+    }, this.autoDeleteBtnMenuOptions, {
       icon: 'search',
       text: 'Search',
       onClick: () => {

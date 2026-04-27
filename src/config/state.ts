@@ -139,6 +139,7 @@ export type StateSettings = {
   },
   fastMessages: FastMessageRule[],
   autoReply: boolean,
+  fastMessagesSidebarOpen: boolean,
 };
 
 export type FastMessageMatchMode = 'exact' | 'contains' | 'startsWith';
@@ -460,7 +461,8 @@ export const SETTINGS_INIT: StateSettings = {
     {trigger: 'thank you', reply: 'I appreciate your help, thank you!', match: 'contains'},
     {trigger: 'bye', reply: 'Talk to you soon 👋', match: 'contains'}
   ],
-  autoReply: false
+  autoReply: false,
+  fastMessagesSidebarOpen: false
 };
 
 export const STATE_INIT: State = {

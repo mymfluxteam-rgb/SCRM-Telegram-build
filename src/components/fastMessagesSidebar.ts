@@ -608,6 +608,12 @@ export const initFastMessagesSidebar = () => {
     createEffect(on(() => appSettings.autoReply, () => {
       refreshAutoReplyToggle();
     }));
+    // Toggle body class so the SCSS can show/hide the column and reclaim the
+    // reserved horizontal space when the sidebar is closed. Driven by the
+    // "Toggle Fast Messages" entry in the chat top bar's More-actions menu.
+    createEffect(on(() => appSettings.fastMessagesSidebarOpen, (open) => {
+      document.body.classList.toggle('fast-sidebar-open', !!open);
+    }));
   });
 
   setActiveTab('fast');

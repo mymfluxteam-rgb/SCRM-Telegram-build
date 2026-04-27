@@ -5,18 +5,20 @@
 
 @use "../shared" as *;
 
-/* Reserve space on the right for the fast messages sidebar so it does not
- * overlap the chat content or the existing right info column. */
+/* The fast messages sidebar is hidden by default and slides out from the
+ * right when toggled from the chat top bar's "More actions" menu. While it
+ * is hidden it must not reserve any layout space, so the right padding/inset
+ * adjustments are gated on the `body.fast-sidebar-open` class. */
 $fast-sidebar-width: 16rem;
 
-.page-chats #main-columns {
+.page-chats.fast-sidebar-open #main-columns {
   @include respond-to(not-handhelds) {
     padding-inline-end: $fast-sidebar-width;
   }
 }
 
 @include respond-to(not-handhelds) {
-  #column-right {
+  body.fast-sidebar-open #column-right {
     inset-inline-end: $fast-sidebar-width !important;
   }
 }
@@ -31,8 +33,29 @@ $fast-sidebar-width: 16rem;
   position: absolute;
   inset-inline-end: 0;
   top: 0;
-  z-index: 4;
+  /* Sit below standard popups/menus (z-index 5+) so the chat top bar's
+   * "More actions" menu always renders above the sidebar. */
+  z-index: 3;
   overflow: hidden;
+  transform: translateX(100%);
+  transition: transform .2s ease;
+  pointer-events: none;
+  visibility: hidden;
+
+  body.fast-sidebar-open & {
+    transform: translateX(0);
+    pointer-events: auto;
+    visibility: visible;
+  }
+
+  /* Logical-direction sibling for RTL layouts. */
+  body[dir="rtl"] & {
+    transform: translateX(-100%);
+  }
+
+  body[dir="rtl"].fast-sidebar-open & {
+    transform: translateX(0);
+  }
 
   @include respond-to(handhelds) {
     display: none !important;
