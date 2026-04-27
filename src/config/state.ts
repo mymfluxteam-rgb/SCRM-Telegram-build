@@ -138,6 +138,7 @@ export type StateSettings = {
     layoutStyle: 'custom'
   },
   fastMessages: string[],
+  autoReply: boolean,
 };
 
 // (1 - use swatch, 2 - use picker color), (color from swatch), (color from picker)
@@ -450,7 +451,8 @@ export const SETTINGS_INIT: StateSettings = {
     'No problem at all 🙂',
     'I appreciate your help, thank you!',
     'Talk to you soon 👋'
-  ]
+  ],
+  autoReply: false
 };
 
 export const STATE_INIT: State = {

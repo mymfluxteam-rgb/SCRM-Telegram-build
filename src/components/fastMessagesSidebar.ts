@@ -17,6 +17,7 @@ import {unwrap} from 'solid-js/store';
 import appImManager from '@lib/appImManager';
 import {useAppSettings} from '@stores/appSettings';
 import initFastMessagesCloudSync from '@lib/fastMessagesCloudSync';
+import initFastMessagesAutoReply from '@lib/fastMessagesAutoReply';
 
 const DEFAULT_FAST_MESSAGES: string[] = [
   'Hello! 👋 How are you today?',
@@ -136,6 +137,10 @@ export const initFastMessagesSidebar = () => {
   // Kick off cross-device sync via Saved Messages.
   initFastMessagesCloudSync();
 
+  // Start the auto-reply listener (it self-gates on the appSettings.autoReply
+  // toggle, so it is safe to init unconditionally).
+  initFastMessagesAutoReply();
+
   // -- DOM scaffolding --------------------------------------------------------
   const root = document.createElement('div');
   root.className = 'fast-sidebar';
@@ -157,12 +162,30 @@ export const initFastMessagesSidebar = () => {
 
   titleWrap.append(title, subtitle);
 
+  const headerActions = document.createElement('div');
+  headerActions.className = 'fast-sidebar__header-actions';
+
+  const autoReplyToggle = document.createElement('button');
+  autoReplyToggle.type = 'button';
+  autoReplyToggle.className = 'fast-sidebar__auto-reply-toggle';
+  autoReplyToggle.title = 'Toggle Quick Auto Reply';
+
+  const autoReplyDot = document.createElement('span');
+  autoReplyDot.className = 'fast-sidebar__auto-reply-dot';
+  const autoReplyLabel = document.createElement('span');
+  autoReplyLabel.className = 'fast-sidebar__auto-reply-label';
+  autoReplyLabel.textContent = 'Auto Reply';
+  const autoReplyState = document.createElement('span');
+  autoReplyState.className = 'fast-sidebar__auto-reply-state';
+  autoReplyToggle.append(autoReplyDot, autoReplyLabel, autoReplyState);
+
   const editToggle = document.createElement('button');
   editToggle.type = 'button';
   editToggle.className = 'fast-sidebar__edit-toggle';
   editToggle.textContent = 'Edit';
 
-  headerRow.append(titleWrap, editToggle);
+  headerActions.append(autoReplyToggle, editToggle);
+  headerRow.append(titleWrap, headerActions);
   header.append(headerRow);
 
   // Tab strip --------------------------------------------------------------
@@ -480,6 +503,17 @@ export const initFastMessagesSidebar = () => {
   fastTabBtn.addEventListener('click', () => setActiveTab('fast'));
   langTabBtn.addEventListener('click', () => setActiveTab('lang'));
 
+  const refreshAutoReplyToggle = () => {
+    const on = !!appSettings.autoReply;
+    autoReplyToggle.classList.toggle('is-on', on);
+    autoReplyToggle.setAttribute('aria-pressed', String(on));
+    autoReplyState.textContent = on ? 'On' : 'Off';
+  };
+
+  autoReplyToggle.addEventListener('click', () => {
+    setAppSettings('autoReply', !appSettings.autoReply);
+  });
+
   editToggle.addEventListener('click', () => {
     editing = !editing;
     editToggle.textContent = editing ? 'Done' : 'Edit';
@@ -497,9 +531,13 @@ export const initFastMessagesSidebar = () => {
     createEffect(on(() => unwrap(appSettings.languageFormat), () => {
       if(activeTab === 'lang') renderLanguagePanel();
     }));
+    createEffect(on(() => appSettings.autoReply, () => {
+      refreshAutoReplyToggle();
+    }));
   });
 
   setActiveTab('fast');
+  refreshAutoReplyToggle();
 };
 
 export default initFastMessagesSidebar;

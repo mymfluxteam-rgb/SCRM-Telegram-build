@@ -78,6 +78,14 @@ $fast-sidebar-width: 16rem;
     }
   }
 
+  &__header-actions {
+    flex: 0 0 auto;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: .375rem;
+  }
+
   &__edit-toggle {
     flex: 0 0 auto;
     background: transparent;
@@ -99,6 +107,58 @@ $fast-sidebar-width: 16rem;
       background-color: var(--primary-color);
       color: #fff;
     }
+  }
+
+  &__auto-reply-toggle {
+    flex: 0 0 auto;
+    display: inline-flex;
+    align-items: center;
+    gap: .375rem;
+    background: var(--light-secondary-text-color, rgba(0, 0, 0, .05));
+    border: 1px solid transparent;
+    color: var(--secondary-text-color);
+    border-radius: 999px;
+    padding: .1875rem .5rem .1875rem .375rem;
+    font-size: .75rem;
+    font-weight: var(--font-weight-bold);
+    cursor: pointer;
+    font-family: inherit;
+    line-height: 1;
+    transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+
+    &:hover {
+      background-color: var(--light-primary-color, rgba(0, 122, 255, .1));
+      color: var(--primary-color);
+    }
+
+    &.is-on {
+      background-color: var(--primary-color);
+      color: #fff;
+      border-color: var(--primary-color);
+
+      .fast-sidebar__auto-reply-dot {
+        background-color: #fff;
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, .35);
+      }
+    }
+  }
+
+  &__auto-reply-dot {
+    display: inline-block;
+    width: .5rem;
+    height: .5rem;
+    border-radius: 50%;
+    background-color: var(--secondary-text-color);
+    transition: background-color .15s ease, box-shadow .15s ease;
+  }
+
+  &__auto-reply-label {
+    letter-spacing: .01em;
+  }
+
+  &__auto-reply-state {
+    opacity: .85;
+    font-weight: var(--font-weight-normal);
   }
 
   /* Tab strip ------------------------------------------------------------ */
