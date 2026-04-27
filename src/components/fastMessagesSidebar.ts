@@ -15,7 +15,7 @@
 import {createEffect, createRoot, on} from 'solid-js';
 import {unwrap} from 'solid-js/store';
 import appImManager from '@lib/appImManager';
-import {useAppSettings} from '@stores/appSettings';
+import {setAppSettings, useAppSettings} from '@stores/appSettings';
 import initFastMessagesCloudSync from '@lib/fastMessagesCloudSync';
 import initFastMessagesAutoReply from '@lib/fastMessagesAutoReply';
 import {normaliseFastMessages} from '@lib/fastMessagesUtils';
@@ -101,6 +101,16 @@ const LAYOUT_STYLES: {value: 'custom', label: string}[] = [
 ];
 
 let initialized = false;
+
+// Bridge so external triggers (the chat top bar's More-actions submenu) can
+// open the sidebar pre-selected to a specific tab. Wired up from
+// initFastMessagesSidebar() once the DOM is mounted.
+let _setActiveTabFromOutside: ((id: 'fast' | 'lang') => void) | null = null;
+
+export const openFastMessagesSidebarTab = (tab: 'fast' | 'lang') => {
+  setAppSettings('fastMessagesSidebarOpen', true);
+  _setActiveTabFromOutside?.(tab);
+};
 
 const insertFastMessage = (text: string) => {
   const chat = appImManager.chat;
@@ -561,6 +571,9 @@ export const initFastMessagesSidebar = () => {
       renderLanguagePanel();
     }
   };
+
+  // Expose tab selection to the chat top bar's More-actions submenu.
+  _setActiveTabFromOutside = setActiveTab;
 
   const refreshHeader = () => {
     const base = TAB_HEADERS[activeTab];

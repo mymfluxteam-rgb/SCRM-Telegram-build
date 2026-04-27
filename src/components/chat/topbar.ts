@@ -74,7 +74,7 @@ import appDialogsManager from '@lib/appDialogsManager';
 import {createEffect, createRoot, on} from 'solid-js';
 import SolidJSHotReloadGuardProvider from '@lib/solidjs/hotReloadGuardProvider';
 import {AppAdminRecentActionsTab} from '@components/solidJsTabs/tabs';
-import {setAppSettings, useAppSettings} from '@stores/appSettings';
+import {setAppSettings} from '@stores/appSettings';
 import {wrapAsyncClickHandler} from '@helpers/wrapAsyncClickHandler';
 import liteMode from '@helpers/liteMode';
 import createSubmenuTrigger from '@components/createSubmenuTrigger';
@@ -112,6 +112,7 @@ export default class ChatTopbar {
   private btnDirectMessages: HTMLElement;
 
   private autoDeleteBtnMenuOptions: ButtonMenuItemOptionsVerifiable;
+  private fastMessagesBtnMenuOptions: ButtonMenuItemOptionsVerifiable;
 
   private chatActions: ChatActions;
   private chatRequests: ChatRequests;
@@ -477,18 +478,24 @@ export default class ChatTopbar {
       }
     };
 
-    this.menuButtons = [{
-      // Custom: toggle the right-side Fast Messages sidebar from the chat
-      // top bar's More-actions menu. The sidebar is hidden by default and
-      // only slides in when this entry is clicked.
-      icon: 'comments',
-      regularText: 'Toggle Fast Messages',
-      onClick: () => {
-        const [appSettings, setAppSettings] = useAppSettings();
-        setAppSettings('fastMessagesSidebarOpen', !appSettings.fastMessagesSidebarOpen);
+    // Custom: hover/click the "Toggle Fast Messages" entry in the More-
+    // actions menu to reveal a submenu listing the two right-sidebar panels
+    // — Fast Messages and Language Format. Picking either opens the
+    // right-side Fast Messages sidebar pre-selected to that tab. The
+    // sidebar itself is hidden by default; this submenu is the only entry
+    // point that brings it back into view.
+    this.fastMessagesBtnMenuOptions = createSubmenuTrigger({
+      options: {
+        icon: 'comments',
+        regularText: 'Toggle Fast Messages',
+        verify: () => true,
+        separatorDown: true
       },
-      verify: () => true
-    }, this.autoDeleteBtnMenuOptions, {
+      createSubmenu: this.createFastMessagesSubmenu.bind(this),
+      direction: 'left-start'
+    });
+
+    this.menuButtons = [this.fastMessagesBtnMenuOptions, this.autoDeleteBtnMenuOptions, {
       icon: 'search',
       text: 'Search',
       onClick: () => {
@@ -1743,6 +1750,29 @@ export default class ChatTopbar {
       prepare,
       destroy: () => middlewareHelper.destroy()
     };
+  }
+
+  private async createFastMessagesSubmenu() {
+    // Lazy-import the bridge to avoid pulling the full sidebar module into
+    // the topbar bundle eagerly; the sidebar itself is loaded by pageIm.
+    const {openFastMessagesSidebarTab} = await import('@components/fastMessagesSidebar');
+
+    const menu = await ButtonMenu({
+      buttons: [
+        {
+          icon: 'comments',
+          regularText: 'Fast Messages',
+          onClick: () => openFastMessagesSidebarTab('fast')
+        },
+        {
+          icon: 'language',
+          regularText: 'Language Format',
+          onClick: () => openFastMessagesSidebarTab('lang')
+        }
+      ]
+    });
+
+    return menu;
   }
 
   private async createAutoDeleteSubmenu() {
